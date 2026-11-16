@@ -1,0 +1,6 @@
+# Normaliza saltos de línea: LF en el repositorio, sin importar el SO
+* text=auto eol=lf
+/mvnw text eol=lf
+*.cmd text eol=crlf
+*.jar binary
+*.sh text eol=lf

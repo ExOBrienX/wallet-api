@@ -1,0 +1,19 @@
+# Perfil test: el datasource lo provee Testcontainers (@ServiceConnection),
+# así que aquí no hay URL ni credenciales.
+spring:
+  datasource:
+    hikari:
+      # Más conexiones que el valor por defecto (10), para que los tests de concurrencia
+      # tengan más transacciones realmente simultáneas compitiendo por las mismas filas.
+      maximum-pool-size: 20
+
+wallet:
+  security:
+    jwt:
+      # Secreto aleatorio en cada ejecución: los tests nunca dependen de un valor fijo.
+      secret: ${random.uuid}${random.uuid}
+
+logging:
+  level:
+    cl.exobrienx.wallet: DEBUG
+    org.testcontainers: INFO

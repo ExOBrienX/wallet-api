@@ -1,0 +1,49 @@
+# Entorno completo: PostgreSQL y la API.
+#
+#   docker compose up --build     levanta ambos servicios (API en http://localhost:8080)
+#   docker compose up -d postgres levanta solo la base, para correr la API desde el IDE
+#
+# Todos los valores tienen un valor por defecto pensado para uso local y se pueden
+# sobrescribir con un archivo .env (ver .env.example).
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: wallet-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-wallet}
+      POSTGRES_USER: ${DB_USERNAME:-wallet}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-wallet}
+    ports:
+      # Puerto 5433 en el host para no chocar con otros PostgreSQL locales (que suelen usar 5432)
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - wallet-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    image: wallet-api
+    container_name: wallet-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Perfil dev: incluye los clientes de demostración para probar la API de inmediato.
+      SPRING_PROFILES_ACTIVE: dev
+      # Dentro de la red de Compose la base se llama "postgres" y escucha en 5432.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-wallet}
+      DB_USERNAME: ${DB_USERNAME:-wallet}
+      DB_PASSWORD: ${DB_PASSWORD:-wallet}
+      # Si está vacío, el contenedor genera uno aleatorio al arrancar (ver docker-entrypoint.sh).
+      JWT_SECRET: ${JWT_SECRET:-}
+      WALLET_ADMIN_EMAIL: ${WALLET_ADMIN_EMAIL:-}
+      WALLET_ADMIN_PASSWORD: ${WALLET_ADMIN_PASSWORD:-}
+    ports:
+      - "8080:8080"
+
+volumes:
+  wallet-pgdata:
