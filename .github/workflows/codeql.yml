@@ -1,0 +1,33 @@
+name: CodeQL
+
+# Análisis estático de seguridad: busca vulnerabilidades en el código (inyección, manejo
+# inseguro de datos, criptografía débil, etc.). Los resultados aparecen en la pestaña
+# Security del repositorio.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 6 * * 1'
+
+jobs:
+  analyze:
+    name: Análisis de seguridad
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # Sin compilación: CodeQL analiza el código Java directamente desde el fuente.
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: java-kotlin
+          build-mode: none
+          queries: security-and-quality
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:java-kotlin

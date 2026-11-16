@@ -1,0 +1,21 @@
+# Perfil dev: PostgreSQL de compose.yaml. Las credenciales salen de variables de entorno,
+# con valores por defecto que coinciden con compose.yaml (solo sirven en local).
+spring:
+  config:
+    # Carga el .env de la raíz del proyecto (si existe) como fuente de propiedades.
+    import: optional:file:.env[.properties]
+  datasource:
+    url: jdbc:postgresql://localhost:${DB_PORT:5433}/${DB_NAME:wallet}
+    username: ${DB_USERNAME:wallet}
+    password: ${DB_PASSWORD:wallet}
+
+wallet:
+  demo:
+    # Clientes ficticios con cuentas y movimientos, para probar la API recién clonada.
+    enabled: true
+    # Contraseña común de los clientes de demostración (solo existen en desarrollo).
+    password: ${DEMO_USER_PASSWORD:demo12345}
+
+logging:
+  level:
+    cl.exobrienx.wallet: DEBUG

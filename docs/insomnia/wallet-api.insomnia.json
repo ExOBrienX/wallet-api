@@ -1,0 +1,517 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-11-16T00:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v10.0.0",
+  "resources": [
+    {
+      "_id": "wrk_wallet_api",
+      "_type": "workspace",
+      "parentId": null,
+      "name": "Wallet API",
+      "scope": "collection",
+      "description": "Colección para probar la Wallet API. Antes de usarla: levantar la API con `docker compose up --build` y seleccionar el entorno *Local*. Las peticiones toman el token del login automáticamente."
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "parentId": "wrk_wallet_api",
+      "name": "Base Environment",
+      "isPrivate": false,
+      "data": {
+        "accessToken": "{% response 'body', 'req_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 840 %}",
+        "accountId": "{% response 'body', 'req_accounts_list', 'b64::JFswXS5pZA==::46b', 'when-expired', 60 %}",
+        "destinationAccountNumber": "{% response 'body', 'req_accounts_list', 'b64::JFsxXS5hY2NvdW50TnVtYmVy::46b', 'when-expired', 60 %}",
+        "transactionId": "{% response 'body', 'req_deposit', 'b64::JC50cmFuc2FjdGlvbklk::46b', 'never', 0 %}",
+        "adminToken": "{% response 'body', 'req_admin_login', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 840 %}"
+      }
+    },
+    {
+      "_id": "env_local",
+      "_type": "environment",
+      "parentId": "env_base",
+      "name": "Local",
+      "isPrivate": false,
+      "data": {
+        "baseUrl": "http://localhost:8080",
+        "email": "camila.rojas@demo.cl",
+        "password": "demo12345",
+        "adminEmail": "admin@wallet.local",
+        "adminPassword": "definir-igual-que-WALLET_ADMIN_PASSWORD",
+        "repeatableKey": "b1f6e0c2-5d3a-4c8e-9f71-0a2d4e6b8c10"
+      }
+    },
+    {
+      "_id": "fld_1_auth",
+      "_type": "request_group",
+      "parentId": "wrk_wallet_api",
+      "name": "1. Autenticación",
+      "description": "Registro, inicio de sesión, renovación y cierre de sesión.",
+      "metaSortKey": -1000
+    },
+    {
+      "_id": "fld_2_accounts",
+      "_type": "request_group",
+      "parentId": "wrk_wallet_api",
+      "name": "2. Cuentas",
+      "description": "Abrir cuentas, consultar saldo e historial. Ejecutar *Listar mis cuentas* antes de usar las demás.",
+      "metaSortKey": -999
+    },
+    {
+      "_id": "fld_3_money",
+      "_type": "request_group",
+      "parentId": "wrk_wallet_api",
+      "name": "3. Movimientos de dinero",
+      "description": "Depósitos, retiros y transferencias. Todos exigen Idempotency-Key, que se genera sola en cada envío.",
+      "metaSortKey": -998
+    },
+    {
+      "_id": "fld_4_admin",
+      "_type": "request_group",
+      "parentId": "wrk_wallet_api",
+      "name": "4. Administración",
+      "description": "Requiere un administrador: definir WALLET_ADMIN_EMAIL y WALLET_ADMIN_PASSWORD en el .env y copiar esos valores en el entorno.",
+      "metaSortKey": -997
+    },
+    {
+      "_id": "fld_5_health",
+      "_type": "request_group",
+      "parentId": "wrk_wallet_api",
+      "name": "5. Salud y documentación",
+      "description": "Endpoints públicos de estado de la API.",
+      "metaSortKey": -996
+    },
+    {
+      "_id": "req_register",
+      "_type": "request",
+      "parentId": "fld_1_auth",
+      "name": "Registrar cliente",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/auth/register",
+      "description": "Crea un cliente. El correo y el RUT deben ser únicos: cambiarlos para registrar otro (el RUT debe tener dígito verificador válido).",
+      "metaSortKey": 1,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"ana.perez@correo.cl\",\n  \"password\": \"MiClave2026\",\n  \"firstName\": \"Ana\",\n  \"lastName\": \"Pérez Soto\",\n  \"rut\": \"12.345.678-5\",\n  \"phone\": \"+56912345678\"\n}"
+      }
+    },
+    {
+      "_id": "req_login",
+      "_type": "request",
+      "parentId": "fld_1_auth",
+      "name": "Iniciar sesión",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/auth/login",
+      "description": "Inicia sesión con el cliente del entorno. Las demás peticiones usan el token de esta respuesta y la repiten solas cuando el token está por expirar.",
+      "metaSortKey": 2,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.email }}\",\n  \"password\": \"{{ _.password }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_refresh",
+      "_type": "request",
+      "parentId": "fld_1_auth",
+      "name": "Renovar tokens",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/auth/refresh",
+      "description": "Hace un login nuevo y renueva su refresh token, que queda revocado. Reutilizar un refresh token revocado cierra todas las sesiones del usuario.",
+      "metaSortKey": 3,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"refreshToken\": \"{% response 'body', 'req_login', 'b64::JC5yZWZyZXNoVG9rZW4=::46b', 'always', 0 %}\"\n}"
+      }
+    },
+    {
+      "_id": "req_logout",
+      "_type": "request",
+      "parentId": "fld_1_auth",
+      "name": "Cerrar sesión",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/auth/logout",
+      "description": "Revoca el refresh token indicado.",
+      "metaSortKey": 4,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"refreshToken\": \"{% response 'body', 'req_login', 'b64::JC5yZWZyZXNoVG9rZW4=::46b', 'always', 0 %}\"\n}"
+      }
+    },
+    {
+      "_id": "req_accounts_list",
+      "_type": "request",
+      "parentId": "fld_2_accounts",
+      "name": "Listar mis cuentas",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/accounts",
+      "description": "Cuentas del cliente con su saldo. De esta respuesta salen accountId (primera cuenta) y destinationAccountNumber (segunda cuenta).",
+      "metaSortKey": 5,
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_accounts_open",
+      "_type": "request",
+      "parentId": "fld_2_accounts",
+      "name": "Abrir cuenta",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/accounts",
+      "description": "Abre una cuenta en CLP con número de 10 dígitos. Máximo 5 cuentas por cliente.",
+      "metaSortKey": 6,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"alias\": \"Ahorro\"\n}"
+      }
+    },
+    {
+      "_id": "req_accounts_get",
+      "_type": "request",
+      "parentId": "fld_2_accounts",
+      "name": "Detalle de una cuenta",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/accounts/{{ _.accountId }}",
+      "description": "Saldo y datos de la primera cuenta del cliente.",
+      "metaSortKey": 7,
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_accounts_history",
+      "_type": "request",
+      "parentId": "fld_2_accounts",
+      "name": "Historial de movimientos",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/accounts/{{ _.accountId }}/transactions?page=0&size=20",
+      "description": "Del más reciente al más antiguo. Montos con signo: positivo si entró dinero. Admite from y to en ISO-8601 UTC (por ejemplo from=2026-11-01T00:00:00Z).",
+      "metaSortKey": 8,
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_deposit",
+      "_type": "request",
+      "parentId": "fld_3_money",
+      "name": "Depositar",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/deposits",
+      "description": "Depósito simulado en la primera cuenta. Su transactionId queda disponible para la reversa del administrador.",
+      "metaSortKey": 9,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"accountId\": \"{{ _.accountId }}\",\n  \"amount\": 150000,\n  \"description\": \"Sueldo\"\n}"
+      }
+    },
+    {
+      "_id": "req_withdraw",
+      "_type": "request",
+      "parentId": "fld_3_money",
+      "name": "Retirar",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/withdrawals",
+      "description": "Retiro simulado. Responde 422 si el saldo no alcanza.",
+      "metaSortKey": 10,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"accountId\": \"{{ _.accountId }}\",\n  \"amount\": 20000,\n  \"description\": \"Retiro cajero\"\n}"
+      }
+    },
+    {
+      "_id": "req_transfer",
+      "_type": "request",
+      "parentId": "fld_3_money",
+      "name": "Transferir",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/transfers",
+      "description": "Transfiere desde la primera cuenta a la segunda del mismo cliente. Para transferir a otra persona, reemplazar destinationAccountNumber por su número de cuenta.",
+      "metaSortKey": 11,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"sourceAccountId\": \"{{ _.accountId }}\",\n  \"destinationAccountNumber\": \"{{ _.destinationAccountNumber }}\",\n  \"amount\": 45000,\n  \"description\": \"Traspaso a ahorro\"\n}"
+      }
+    },
+    {
+      "_id": "req_transfer_repeatable",
+      "_type": "request",
+      "parentId": "fld_3_money",
+      "name": "Transferir con clave fija (idempotencia)",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/transfers",
+      "description": "Usa siempre la misma Idempotency-Key (variable repeatableKey). El primer envío transfiere; los siguientes devuelven la misma respuesta con el header Idempotent-Replayed: true y no mueven dinero. Cambiar el monto con la misma clave responde 422.",
+      "metaSortKey": 12,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{{ _.repeatableKey }}"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"sourceAccountId\": \"{{ _.accountId }}\",\n  \"destinationAccountNumber\": \"{{ _.destinationAccountNumber }}\",\n  \"amount\": 1000,\n  \"description\": \"Prueba de idempotencia\"\n}"
+      }
+    },
+    {
+      "_id": "req_admin_login",
+      "_type": "request",
+      "parentId": "fld_4_admin",
+      "name": "Iniciar sesión como administrador",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/auth/login",
+      "description": "Usa adminEmail y adminPassword del entorno, que deben coincidir con WALLET_ADMIN_EMAIL y WALLET_ADMIN_PASSWORD del .env.",
+      "metaSortKey": 13,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.adminEmail }}\",\n  \"password\": \"{{ _.adminPassword }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_admin_block",
+      "_type": "request",
+      "parentId": "fld_4_admin",
+      "name": "Bloquear cuenta",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/api/admin/accounts/{{ _.accountId }}/status",
+      "description": "Bloquea la primera cuenta del cliente: no podrá depositar, retirar, enviar ni recibir.",
+      "metaSortKey": 14,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.adminToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"status\": \"BLOCKED\"\n}"
+      }
+    },
+    {
+      "_id": "req_admin_unblock",
+      "_type": "request",
+      "parentId": "fld_4_admin",
+      "name": "Reactivar cuenta",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/api/admin/accounts/{{ _.accountId }}/status",
+      "description": "Reactiva la cuenta.",
+      "metaSortKey": 15,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.adminToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"status\": \"ACTIVE\"\n}"
+      }
+    },
+    {
+      "_id": "req_admin_reverse",
+      "_type": "request",
+      "parentId": "fld_4_admin",
+      "name": "Revertir último depósito",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/admin/transactions/{{ _.transactionId }}/reverse",
+      "description": "Revierte la transacción del último Depositar. Crea asientos inversos; puede dejar la cuenta en negativo.",
+      "metaSortKey": 16,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.adminToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"reason\": \"Depósito duplicado\"\n}"
+      }
+    },
+    {
+      "_id": "req_admin_reconciliation",
+      "_type": "request",
+      "parentId": "fld_4_admin",
+      "name": "Conciliación del libro",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/admin/reconciliation",
+      "description": "Verifica que débitos y créditos cuadren e informa cuentas con saldo negativo.",
+      "metaSortKey": 17,
+      "headers": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.adminToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_health",
+      "_type": "request",
+      "parentId": "fld_5_health",
+      "name": "Estado general",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/actuator/health",
+      "description": "UP o DOWN. El detalle por componente solo lo ve un administrador.",
+      "metaSortKey": 18,
+      "headers": [],
+      "authentication": {},
+      "body": {}
+    },
+    {
+      "_id": "req_liveness",
+      "_type": "request",
+      "parentId": "fld_5_health",
+      "name": "Liveness",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/actuator/health/liveness",
+      "description": "El proceso está vivo.",
+      "metaSortKey": 19,
+      "headers": [],
+      "authentication": {},
+      "body": {}
+    },
+    {
+      "_id": "req_readiness",
+      "_type": "request",
+      "parentId": "fld_5_health",
+      "name": "Readiness",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/actuator/health/readiness",
+      "description": "Lista para recibir tráfico: base de datos y libro contable disponibles.",
+      "metaSortKey": 20,
+      "headers": [],
+      "authentication": {},
+      "body": {}
+    },
+    {
+      "_id": "req_openapi",
+      "_type": "request",
+      "parentId": "fld_5_health",
+      "name": "Especificación OpenAPI",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/v3/api-docs",
+      "description": "Especificación OpenAPI en JSON (la misma que muestra Swagger UI).",
+      "metaSortKey": 21,
+      "headers": [],
+      "authentication": {},
+      "body": {}
+    }
+  ]
+}

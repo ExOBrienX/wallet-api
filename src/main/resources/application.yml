@@ -1,0 +1,105 @@
+# Configuración común a todos los perfiles.
+spring:
+  application:
+    name: wallet
+  profiles:
+    # Si no se indica perfil, se usa dev. Los tests activan "test" explícitamente.
+    default: dev
+  jpa:
+    # El esquema lo maneja Flyway; Hibernate solo verifica que las entidades calcen.
+    hibernate:
+      ddl-auto: validate
+    # Desactiva Open Session In View: las consultas ocurren solo dentro de la capa de servicio.
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    locations: classpath:db/migration
+  jackson:
+    deserialization:
+      # Por defecto Jackson acepta 1000.50 en un campo entero y lo trunca a 1000 sin avisar.
+      # Con dinero eso es inaceptable: un monto con decimales se rechaza con 400.
+      accept-float-as-int: false
+  data:
+    web:
+      pageable:
+        # Tamaño máximo de página: un cliente no puede pedir el historial completo de una vez.
+        max-page-size: 100
+  web:
+    # Idioma fijo para los mensajes de validación ("no debe estar vacío"), sin depender
+    # del idioma del sistema operativo ni del header Accept-Language del cliente.
+    locale: es
+    locale-resolver: fixed
+
+server:
+  error:
+    # No filtrar detalles internos en las respuestas de error.
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      # El estado general (UP/DOWN) es público; el detalle de cada componente (base de datos,
+      # disco, libro contable) solo lo ve un administrador.
+      show-details: when-authorized
+      roles: ADMIN
+      # Sondas para orquestadores (Docker, Kubernetes):
+      #   /actuator/health/liveness   el proceso está vivo; si falla, se reinicia el contenedor
+      #   /actuator/health/readiness  puede recibir tráfico: base de datos y libro contable listos
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState, db, ledger
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: Wallet API
+    description: Billetera digital con libro contable de doble entrada
+
+springdoc:
+  # Documentación OpenAPI y Swagger UI. Se pueden desactivar en un despliegue público con
+  # API_DOCS_ENABLED=false.
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:true}
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:true}
+
+wallet:
+  security:
+    jwt:
+      # Sin valor por defecto: si falta la variable de entorno, la aplicación no arranca.
+      secret: ${JWT_SECRET}
+      issuer: wallet-api
+      access-token-ttl: 15m
+      refresh-token-ttl: 7d
+    # Orígenes web que pueden llamar a la API desde un navegador, separados por coma.
+    # Vacío por defecto: ninguno (la API no tiene frontend propio).
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+    # Límite de intentos fallidos de inicio de sesión por correo e IP (protección contra
+    # fuerza bruta). Al superarlo se responde 429 hasta que termine la ventana.
+    login:
+      max-attempts: 5
+      window: 15m
+    # Administrador inicial. Si ambas variables están definidas y el correo no existe,
+    # se crea al arrancar; si no, no se hace nada.
+    bootstrap-admin:
+      email: ${WALLET_ADMIN_EMAIL:}
+      password: ${WALLET_ADMIN_PASSWORD:}
+  limits:
+    # Monto máximo (CLP) que una cuenta puede transferir por día.
+    daily-transfer: 1000000
+    # Zona horaria que define el corte del "día" para el límite diario.
+    timezone: America/Santiago
+    # Cuentas que puede tener abiertas un mismo usuario.
+    max-accounts-per-user: 5
